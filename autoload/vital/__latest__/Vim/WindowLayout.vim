@@ -34,6 +34,7 @@ endfunction
 " width:   30 or 0.3
 " height:  30 or 0.3
 " layout:  'layout name'
+" walias:  'window name'
 "
 " limitation
 " ---
@@ -59,6 +60,17 @@ function! s:window_layout.layout(layout_data)
     let &splitright= save_splitright
     let &splitbelow= save_splitbelow
   endtry
+endfunction
+
+function! s:window_layout.winnr(walias)
+  for nr in range(1, winnr('$'))
+    let name= getwinvar(nr, 'vital_vim_windowlayout_walias')
+
+    if name ==# a:walias
+      return nr
+    endif
+  endfor
+  return -1
 endfunction
 
 "
@@ -117,11 +129,9 @@ function! s:border_layout.make_opener(opener, data)
       call a:wl.__buffer_managers[bufname].open(bufname, {'opener': self.opener})
     endif
 
-    if has_key(self.data, 'width')
-      " execute 'vertical resize' self.data.width
-    endif
-
-    if has_key(self.data, 'height')
+    " make alias for window
+    if has_key(self.data, 'walias')
+      call setwinvar('.', 'vital_vim_windowlayout_walias', self.data.walias)
     endif
 
     if has_key(self.data, 'north') || has_key(self.data, 'south') ||
