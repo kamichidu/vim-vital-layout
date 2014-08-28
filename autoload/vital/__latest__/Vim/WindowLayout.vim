@@ -2,13 +2,26 @@ let s:save_cpo= &cpo
 set cpo&vim
 
 function! s:_vital_loaded(V)
+  let s:BM= a:V.import('Vim.BufferManager')
 endfunction
 
 function! s:_vital_depends()
-  return []
+  return ['Vim.BufferManager']
 endfunction
 
-let s:layouts= {}
+let s:window_layout= {
+\ '__buffer_managers': {},
+\ '__layouts': {},
+\ '__range': '',
+\}
+
+function! s:new(...)
+  let wl= deepcopy(s:window_layout)
+
+  " wl.__range= get(a:000, 0, 'tabpage')
+
+  return wl
+endfunction
 
 " layout_data
 " ---
@@ -21,10 +34,16 @@ let s:layouts= {}
 " width:   30 or 0.3
 " height:  30 or 0.3
 " layout:  'layout name'
-function! s:layout(layout_data)
+"
+" limitation
+" ---
+" north.width = south.width = west.width + center.width + east.width
+" north.height + south.height + center.height = parent.height
+"
+function! s:window_layout.layout(layout_data)
   if !has_key(a:layout_data, 'layout')
     throw "vital: Vim.WindowLayout: You must specify `layout'."
-  elseif !has_key(s:layouts, a:layout_data.layout)
+  elseif !has_key(self.__layouts, a:layout_data.layout)
     throw printf("vital: Vim.WindowLayout: No such layout `%s'.", a:layout_data.layout)
   endif
 
@@ -35,7 +54,7 @@ function! s:layout(layout_data)
   set nosplitbelow
 
   try
-    call s:layouts[a:layout_data.layout].apply(a:layout_data)
+    call self.__layouts[a:layout_data.layout].apply(self, a:layout_data)
   finally
     let &splitright= save_splitright
     let &splitbelow= save_splitbelow
@@ -55,7 +74,7 @@ endfunction
 
 let s:border_layout= {}
 
-function! s:border_layout.apply(data)
+function! s:border_layout.apply(wl, data)
   " split vertical
   let openers= []
   if has_key(a:data, 'north')
@@ -78,7 +97,7 @@ function! s:border_layout.apply(data)
 
   for opener in openers
     let prev_bufnr= bufnr('%')
-    call opener.apply()
+    call opener.apply(a:wl)
     execute bufwinnr(prev_bufnr) 'wincmd w'
   endfor
 endfunction
@@ -89,26 +108,33 @@ function! s:border_layout.make_opener(opener, data)
   \ 'data':   a:data,
   \}
 
-  function! opener.apply()
+  function! opener.apply(wl)
     if !empty(self.opener)
-      if has_key(self.data, 'bufname')
-        execute self.opener self.data.bufname
-      else
-        execute self.opener
+      let bufname= get(self.data, 'bufname', '')
+      if !has_key(a:wl.__buffer_managers, bufname)
+        let a:wl.__buffer_managers[bufname]= s:BM.new()
       endif
+      call a:wl.__buffer_managers[bufname].open(bufname, {'opener': self.opener})
+    endif
+
+    if has_key(self.data, 'width')
+      " execute 'vertical resize' self.data.width
+    endif
+
+    if has_key(self.data, 'height')
     endif
 
     if has_key(self.data, 'north') || has_key(self.data, 'south') ||
     \  has_key(self.data, 'east') || has_key(self.data, 'west') ||
     \  has_key(self.data, 'center')
-      call s:layout(self.data)
+      call a:wl.layout(self.data)
     endif
   endfunction
 
   return opener
 endfunction
 
-let s:layouts.border= s:border_layout
+let s:window_layout.__layouts.border= s:border_layout
 unlet s:border_layout
 
 let &cpo= s:save_cpo
