@@ -8,7 +8,26 @@ function! s:_vital_depends()
   return []
 endfunction
 
+let s:layouts= {}
+
+" layout_data
+" ---
+" north:   {layout_data}
+" south:   {layout_data}
+" west:    {layout_data}
+" east:    {layout_data}
+" center:  {layout_data}
+" bufname: 'buffer name'
+" width:   30 or 0.3
+" height:  30 or 0.3
+" layout:  'layout name'
 function! s:layout(layout_data)
+  if !has_key(a:layout_data, 'layout')
+    throw "vital: Vim.WindowLayout: You must specify `layout'."
+  elseif !has_key(s:layouts, a:layout_data.layout)
+    throw printf("vital: Vim.WindowLayout: No such layout `%s'.", a:layout_data.layout)
+  endif
+
   let save_splitright= &splitright
   let save_splitbelow= &splitbelow
 
@@ -16,7 +35,7 @@ function! s:layout(layout_data)
   set nosplitbelow
 
   try
-    call s:border_layout.apply(a:layout_data)
+    call s:layouts[a:layout_data.layout].apply(a:layout_data)
   finally
     let &splitright= save_splitright
     let &splitbelow= save_splitbelow
@@ -88,6 +107,9 @@ function! s:border_layout.make_opener(opener, data)
 
   return opener
 endfunction
+
+let s:layouts.border= s:border_layout
+unlet s:border_layout
 
 let &cpo= s:save_cpo
 unlet s:save_cpo
