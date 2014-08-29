@@ -206,12 +206,11 @@ function! s:border_layout.apply(wl, data)
 
   " do layout
   for opener in openers
-    call setwinvar('.', 'vital_vim_windowlayout_prev_window', 1)
+    let winvar= getwinvar('.', '')
     call opener.apply(a:wl)
     for nr in range(1, winnr('$'))
-      if getwinvar(nr, 'vital_vim_windowlayout_prev_window')
+      if getwinvar(nr, '') is winvar
         execute nr 'wincmd w'
-        unlet w:vital_vim_windowlayout_prev_window
         break
       endif
     endfor
