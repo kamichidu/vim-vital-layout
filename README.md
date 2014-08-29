@@ -117,3 +117,5 @@ call g:layout.layout(
 \   }
 \)
 ```
+
+![](https://kamichidu.github.io/vital-layout/example00.gif)
