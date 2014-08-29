@@ -10,8 +10,14 @@ function! s:_vital_depends()
   return ['Vim.BufferManager', 'Data.List']
 endfunction
 
+" buffer:
+"   id: required
+"   bufnr: optional
+"   bufname: optional (default: '')
+"   range: optional (default: 'tabpage')
+"   __manager: internal use
 let s:window_layout= {
-\ '__buffer_managers': {},
+\ '__buffers': {},
 \ '__layouts': {},
 \}
 
@@ -44,7 +50,9 @@ endfunction
 " north.width = south.width = west.width + center.width + east.width
 " north.height + south.height + center.height = parent.height
 "
-function! s:window_layout.layout(layout_data)
+function! s:window_layout.layout(buffers, layout_data, ...)
+  let force= get(a:000, 0, 1)
+
   if !has_key(a:layout_data, 'layout')
     throw "vital: Vim.WindowLayout: You must specify `layout'."
   elseif !has_key(self.__layouts, a:layout_data.layout)
@@ -54,6 +62,26 @@ function! s:window_layout.layout(layout_data)
   " validate
   call self.validate_layout_data(a:layout_data)
 
+  " ensure buffer exists
+  for buf in a:buffers
+    if !has_key(self.__buffers, buf.id)
+      let self.__buffers[buf.id]= deepcopy(buf)
+
+      let _buf= self.__buffers[buf.id]
+
+      let _buf.__manager= s:BM.new({'range': get(buf, 'range', 'tabpage')})
+      let info= _buf.__manager.open(get(_buf, 'bufname', ''))
+      let _buf.bufnr= info.bufnr
+
+      let self.__buffers[_buf.id]= _buf
+    endif
+  endfor
+
+  " clear tabpage layout
+  if force
+    only
+  endif
+
   let save_splitright= &splitright
   let save_splitbelow= &splitbelow
 
@@ -62,7 +90,7 @@ function! s:window_layout.layout(layout_data)
 
   try
     let engine= self.__layouts[a:layout_data.layout]
-    call engine.apply(self, a:layout_data)
+    call engine.apply(self, deepcopy(a:layout_data))
   finally
     let &splitright= save_splitright
     let &splitbelow= save_splitbelow
@@ -78,6 +106,10 @@ function! s:window_layout.winnr(walias)
     endif
   endfor
   return -1
+endfunction
+
+function! s:window_layout.buffers()
+  return values(self.__buffers)
 endfunction
 
 function! s:window_layout.validate_layout_data(data, ...)
@@ -129,13 +161,30 @@ function! s:border_layout.validate_layout_data(wl, data, workbuf)
 endfunction
 
 function! s:border_layout.apply(wl, data)
+  " adjust
+  if !has_key(a:data, 'center')
+    if has_key(a:data, 'west')
+      let a:data.center= a:data.west
+      unlet a:data.west
+    elseif has_key(a:data, 'east')
+      let a:data.center= a:data.east
+      unlet a:data.east
+    elseif has_key(a:data, 'north')
+      let a:data.center= a:data.north
+      unlet a:data.north
+    elseif has_key(a:data, 'south')
+      let a:data.center= a:data.south
+      unlet a:data.south
+    endif
+  endif
+
   " split vertical
   let openers= []
   if has_key(a:data, 'north')
-    let openers+= [self.make_opener('aboveleft new', a:data.north)]
+    let openers+= [self.make_opener('aboveleft split', a:data.north)]
   endif
   if has_key(a:data, 'south')
-    let openers+= [self.make_opener('belowright new', a:data.south)]
+    let openers+= [self.make_opener('belowright split', a:data.south)]
   endif
 
   " split horizontal
@@ -143,17 +192,23 @@ function! s:border_layout.apply(wl, data)
     let openers+= [self.make_opener('', a:data.center)]
   endif
   if has_key(a:data, 'east')
-    let openers+= [self.make_opener('belowright vnew', a:data.east)]
+    let openers+= [self.make_opener('belowright vsplit', a:data.east)]
   endif
   if has_key(a:data, 'west')
-    let openers+= [self.make_opener('aboveleft vnew', a:data.west)]
+    let openers+= [self.make_opener('aboveleft vsplit', a:data.west)]
   endif
 
   " do layout
   for opener in openers
-    let prev_bufnr= bufnr('%')
+    call setwinvar('.', 'vital_vim_windowlayout_prev_window', 1)
     call opener.apply(a:wl)
-    execute bufwinnr(prev_bufnr) 'wincmd w'
+    for nr in range(1, winnr('$'))
+      if getwinvar(nr, 'vital_vim_windowlayout_prev_window')
+        execute nr 'wincmd w'
+        unlet w:vital_vim_windowlayout_prev_window
+        break
+      endif
+    endfor
   endfor
 
   " adjust size
@@ -167,11 +222,13 @@ function! s:border_layout.make_opener(opener, data)
 
   function! opener.apply(wl)
     if !empty(self.opener)
-      let bufname= get(self.data, 'bufname', '')
-      if !has_key(a:wl.__buffer_managers, bufname)
-        let a:wl.__buffer_managers[bufname]= s:BM.new()
-      endif
-      call a:wl.__buffer_managers[bufname].open(bufname, {'opener': self.opener})
+      execute self.opener
+    endif
+    if has_key(self.data, 'bufref')
+      let bufid= self.data.bufref
+      let bufnr= a:wl.__buffers[bufid].bufnr
+
+      execute 'buffer' bufnr
     endif
 
     " make alias for window
@@ -182,7 +239,7 @@ function! s:border_layout.make_opener(opener, data)
     if has_key(self.data, 'north') || has_key(self.data, 'south') ||
     \  has_key(self.data, 'east') || has_key(self.data, 'west') ||
     \  has_key(self.data, 'center')
-      call a:wl.layout(self.data)
+      call a:wl.layout(a:wl.buffers(), self.data, 0)
     endif
   endfunction
 
