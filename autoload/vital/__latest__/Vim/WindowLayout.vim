@@ -70,8 +70,14 @@ function! s:window_layout.layout(buffers, layout_data, ...)
       let _buf= self.__buffers[buf.id]
 
       let _buf.__manager= s:BM.new({'range': get(buf, 'range', 'tabpage')})
-      let info= _buf.__manager.open(get(_buf, 'bufname', ''))
-      let _buf.bufnr= info.bufnr
+      " use already opened buffer
+      if !has_key(buf, 'bufnr')
+        let info= _buf.__manager.open(get(_buf, 'bufname', ''))
+        let _buf.bufnr= info.bufnr
+      else
+        let _buf.bufnr= buf.bufnr
+        call _buf.__manager.add(_buf.bufnr)
+      endif
 
       let self.__buffers[_buf.id]= _buf
     endif
