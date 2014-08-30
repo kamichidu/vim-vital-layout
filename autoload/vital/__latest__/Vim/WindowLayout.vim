@@ -19,6 +19,7 @@ endfunction
 let s:window_layout= {
 \ '__buffers': {},
 \ '__layouts': {},
+\ '__windows': {},
 \}
 
 function! s:new(...)
@@ -105,7 +106,7 @@ function! s:window_layout.layout(buffers, layout_data, ...)
   set nosplitbelow
 
   try
-    let engine= self.__layouts[a:layout_data.layout]
+    let engine= deepcopy(self.__layouts[a:layout_data.layout])
     call engine.apply(self, deepcopy(a:layout_data))
   finally
     let &splitright= save_splitright
@@ -114,10 +115,14 @@ function! s:window_layout.layout(buffers, layout_data, ...)
 endfunction
 
 function! s:window_layout.winnr(walias)
-  for nr in range(1, winnr('$'))
-    let name= getwinvar(nr, 'vital_vim_windowlayout_walias')
+  if !has_key(self.__windows, a:walias)
+    return -1
+  endif
 
-    if name ==# a:walias
+  for nr in range(1, winnr('$'))
+    let winvar= getwinvar(nr, '')
+
+    if winvar is self.__windows[a:walias]
       return nr
     endif
   endfor
@@ -214,10 +219,12 @@ function! s:border_layout.apply(wl, data)
     let openers+= [self.make_opener('aboveleft vsplit', a:data.west)]
   endif
 
+  let self.__size_list= []
+  let winsize= {'width': winwidth('.'), 'height': winheight('.')}
   " do layout
   for opener in openers
     let winvar= getwinvar('.', '')
-    call opener.apply(a:wl)
+    call opener.apply(a:wl, winsize)
     for nr in range(1, winnr('$'))
       if getwinvar(nr, '') is winvar
         execute nr 'wincmd w'
@@ -227,15 +234,37 @@ function! s:border_layout.apply(wl, data)
   endfor
 
   " adjust size
+  let winvar= getwinvar('.', '')
+  for size in self.__size_list
+    for nr in range(1, winnr('$'))
+      if getwinvar(nr, '') is size.winvar
+        execute nr 'wincmd w'
+        if has_key(size, 'width')
+          execute 'vertical resize' size.width
+        endif
+        if has_key(size, 'height')
+          execute 'resize' size.height
+        endif
+        break
+      endif
+    endfor
+  endfor
+  for nr in range(1, winnr('$'))
+    if getwinvar(nr, '') is winvar
+      execute nr 'wincmd w'
+      break
+    endif
+  endfor
 endfunction
 
 function! s:border_layout.make_opener(opener, data)
   let opener= {
+  \ 'engine': self,
   \ 'opener': a:opener,
   \ 'data':   a:data,
   \}
 
-  function! opener.apply(wl)
+  function! opener.apply(wl, winsize)
     if !empty(self.opener)
       execute self.opener
     endif
@@ -248,7 +277,20 @@ function! s:border_layout.make_opener(opener, data)
 
     " make alias for window
     if has_key(self.data, 'walias')
-      call setwinvar('.', 'vital_vim_windowlayout_walias', self.data.walias)
+      let a:wl.__windows[self.data.walias]= getwinvar('.', '')
+    endif
+
+    " reserve resize
+    let size= {}
+    if has_key(self.data, 'width')
+      let size.width= s:_column_width(a:winsize.width, self.data.width)
+    endif
+    if has_key(self.data, 'height')
+      let size.height= s:_line_height(a:winsize.height, self.data.height)
+    endif
+    if !empty(size)
+      let size.winvar= getwinvar('.', '')
+      let self.engine.__size_list+= [size]
     endif
 
     if has_key(self.data, 'north') || has_key(self.data, 'south') ||
@@ -263,6 +305,26 @@ endfunction
 
 let s:window_layout.__layouts.border= s:border_layout
 unlet s:border_layout
+
+function! s:_column_width(pwinwidth, n)
+  if type(a:n) == type(0)
+    return a:n
+  elseif type(a:n) == type(0.0)
+    return float2nr(a:pwinwidth * a:n + 0.5)
+  else
+    return -1
+  endif
+endfunction
+
+function! s:_line_height(pwinheight, n)
+  if type(a:n) == type(0)
+    return a:n
+  elseif type(a:n) == type(0.0)
+    return float2nr(a:pwinheight * a:n + 0.5)
+  else
+    return -1
+  endif
+endfunction
 
 let &cpo= s:save_cpo
 unlet s:save_cpo
