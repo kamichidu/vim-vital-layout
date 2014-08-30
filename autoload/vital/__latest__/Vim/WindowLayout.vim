@@ -79,6 +79,16 @@ function! s:window_layout.layout(buffers, layout_data, ...)
         call _buf.__manager.add(_buf.bufnr)
       endif
 
+      if has_key(_buf, 'initializer')
+        call _buf.__manager.move()
+
+        if type(_buf.initializer) == type(function('tr'))
+          call call(_buf.initializer, [])
+        elseif type(_buf.initializer) == type([])
+          call call(_buf.initializer[0], [], _buf.initializer[1])
+        endif
+      endif
+
       let self.__buffers[_buf.id]= _buf
     endif
   endfor

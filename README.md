@@ -28,6 +28,8 @@ vimのウィンドウをレイアウトします。
 
         * bufnr (default: -) - この属性にバッファ番号を設定している場合、既存のバッファをレイアウトする
 
+        * initializer (default: -) - バッファの初期化時に呼ばれる関数を設定することができる。funcrefか、[funcref, dict]のどちらかで指定する
+
     * layoutdata - レイアウト情報を詰めた辞書。この辞書内で、buffersに渡したバッファ情報を参照することができる。詳細は後述。
 
 * {WindowLayout}.winnr({walias})
