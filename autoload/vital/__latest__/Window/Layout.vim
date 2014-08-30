@@ -56,7 +56,7 @@ endfunction
 " north.width = south.width = west.width + center.width + east.width
 " north.height + south.height + center.height = parent.height
 "
-function! s:layout.layout(buffers, layout_data, ...)
+function! s:layout.apply(buffers, layout_data, ...)
   let force= get(a:000, 0, 1)
 
   if !has_key(a:layout_data, 'layout')
@@ -71,31 +71,28 @@ function! s:layout.layout(buffers, layout_data, ...)
   " ensure buffer exists
   for buf in a:buffers
     if !has_key(self.__buffers, buf.id)
-      let self.__buffers[buf.id]= deepcopy(buf)
+      let buf= deepcopy(buf)
 
-      let _buf= self.__buffers[buf.id]
-
-      let _buf.__manager= s:BM.new({'range': get(buf, 'range', 'tabpage')})
+      let buf.__manager= s:BM.new({'range': get(buf, 'range', 'tabpage')})
       " use already opened buffer
       if !has_key(buf, 'bufnr')
-        let info= _buf.__manager.open(get(_buf, 'bufname', ''))
-        let _buf.bufnr= info.bufnr
+        let info= buf.__manager.open(get(buf, 'bufname', ''))
+        let buf.bufnr= info.bufnr
       else
-        let _buf.bufnr= buf.bufnr
-        call _buf.__manager.add(_buf.bufnr)
+        call buf.__manager.add(buf.bufnr)
       endif
 
-      if has_key(_buf, 'initializer')
-        call _buf.__manager.move()
+      if has_key(buf, 'initializer')
+        call buf.__manager.move()
 
-        if type(_buf.initializer) == type(function('tr'))
-          call call(_buf.initializer, [])
-        elseif type(_buf.initializer) == type([])
-          call call(_buf.initializer[0], [], _buf.initializer[1])
+        if type(buf.initializer) == type(function('tr'))
+          call call(buf.initializer, [])
+        elseif type(buf.initializer) == type([])
+          call call(buf.initializer[0], [], buf.initializer[1])
         endif
       endif
 
-      let self.__buffers[_buf.id]= _buf
+      let self.__buffers[buf.id]= buf
     endif
   endfor
 

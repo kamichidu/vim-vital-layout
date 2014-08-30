@@ -13,7 +13,7 @@ vimのウィンドウをレイアウトします。
 
     新しいWindowLayoutオブジェクトを生成する。
 
-* {WindowLayout}.layout({buffers}, {layoutdata})
+* {WindowLayout}.apply({buffers}, {layoutdata})
 
     後述するレイアウト設定を引数として渡し、ウィンドウのレイアウトを行う。
     またレイアウトされた各ウィンドウに対して、buffersに渡されたバッファを配置する。
@@ -100,7 +100,7 @@ BorderLayoutは、カレントウィンドウ (トップレベルではタブペ
 
 ```vim:
 let g:layout= vital#of('vital').import('Window.Layout').new()
-call g:layout.layout(
+call g:layout.apply(
 \   [
 \       {'id': 'hoge', 'bufname': 'HOGE'},
 \       {'id': 'fuga', 'bufname': 'FUGA'},
