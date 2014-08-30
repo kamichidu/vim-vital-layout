@@ -99,7 +99,7 @@ BorderLayoutは、カレントウィンドウ (トップレベルではタブペ
 ### 例
 
 ```vim:
-let g:layout= vital#of('vital').import('Vim.WindowLayout').new()
+let g:layout= vital#of('vital').import('Window.Layout').new()
 call g:layout.layout(
 \   [
 \       {'id': 'hoge', 'bufname': 'HOGE'},
