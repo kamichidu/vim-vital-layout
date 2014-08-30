@@ -16,14 +16,14 @@ endfunction
 "   bufname: optional (default: '')
 "   range: optional (default: 'tabpage')
 "   __manager: internal use
-let s:window_layout= {
+let s:layout= {
 \ '__buffers': {},
 \ '__layouts': {},
 \ '__windows': {},
 \}
 
 function! s:new(...)
-  let wl= deepcopy(s:window_layout)
+  let wl= deepcopy(s:layout)
 
   return wl
 endfunction
@@ -51,13 +51,13 @@ endfunction
 " north.width = south.width = west.width + center.width + east.width
 " north.height + south.height + center.height = parent.height
 "
-function! s:window_layout.layout(buffers, layout_data, ...)
+function! s:layout.layout(buffers, layout_data, ...)
   let force= get(a:000, 0, 1)
 
   if !has_key(a:layout_data, 'layout')
-    throw "vital: Vim.WindowLayout: You must specify `layout'."
+    throw "vital: Window.Layout: You must specify `layout'."
   elseif !has_key(self.__layouts, a:layout_data.layout)
-    throw printf("vital: Vim.WindowLayout: No such layout `%s'.", a:layout_data.layout)
+    throw printf("vital: Window.Layout: No such layout manager `%s'.", a:layout_data.layout)
   endif
 
   " validate
@@ -114,7 +114,7 @@ function! s:window_layout.layout(buffers, layout_data, ...)
   endtry
 endfunction
 
-function! s:window_layout.winnr(walias)
+function! s:layout.winnr(walias)
   if !has_key(self.__windows, a:walias)
     return -1
   endif
@@ -129,13 +129,13 @@ function! s:window_layout.winnr(walias)
   return -1
 endfunction
 
-function! s:window_layout.buffers()
+function! s:layout.buffers()
   return values(self.__buffers)
 endfunction
 
-function! s:window_layout.validate_layout_data(data, ...)
+function! s:layout.validate_layout_data(data, ...)
   if has_key(a:data, 'layout') && !has_key(self.__layouts, a:data.layout)
-    throw printf("vital: Vim.WindowLayout: No such layout `%s'.", a:data.layout)
+    throw printf("vital: Window.Layout: No such layout manager `%s'.", a:data.layout)
   endif
 
   let workbuf= get(a:000, 0, {'waliases': []})
@@ -143,7 +143,7 @@ function! s:window_layout.validate_layout_data(data, ...)
   " check meta options
   if has_key(a:data, 'walias')
     if s:L.has(workbuf.waliases, a:data.walias)
-      throw printf("vital: Vim.WindowLayout: Duplicated walias `%s' is not valid.", a:data.walias)
+      throw printf("vital: Window.Layout: Duplicated walias `%s' is not valid.", a:data.walias)
     endif
     let workbuf.waliases+= [a:data.walias]
   endif
@@ -303,7 +303,7 @@ function! s:border_layout.make_opener(opener, data)
   return opener
 endfunction
 
-let s:window_layout.__layouts.border= s:border_layout
+let s:layout.__layouts.border= s:border_layout
 unlet s:border_layout
 
 function! s:_column_width(pwinwidth, n)
