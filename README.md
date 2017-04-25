@@ -1,3 +1,5 @@
+**OBSOLETE** This module is merged by [vim-jp/vital.vim](https://github.com/vim-jp/vital.vom). Use vital.Vim.WindowLayout.
+
 vital-layout
 ========================================================================================================================
 vim用のレイアウトマネージャ。
